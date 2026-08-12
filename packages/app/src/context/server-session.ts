@@ -1050,14 +1050,17 @@ export function createServerSession(
           setData("message", info.sessionID, [info])
           return
         }
+        const existing = messages.findIndex((message) => message.id === info.id)
+        if (existing >= 0) {
+          setData("message", info.sessionID, existing, reconcile(info))
+          return
+        }
         const result = Binary.search(messages, messageKey(info), messageKey)
-        if (result.found) setData("message", info.sessionID, result.index, reconcile(info))
-        if (!result.found)
-          setData("message", info.sessionID, (value = []) => {
-            const next = value.slice()
-            next.splice(result.index, 0, info)
-            return next
-          })
+        setData("message", info.sessionID, (value = []) => {
+          const next = value.slice()
+          next.splice(result.index, 0, info)
+          return next
+        })
         return
       }
       case "message.removed": {

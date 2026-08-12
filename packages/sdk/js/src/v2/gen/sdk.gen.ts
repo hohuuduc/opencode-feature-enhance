@@ -335,6 +335,8 @@ import type {
   V2ReferenceListResponses,
   V2SessionActiveErrors,
   V2SessionActiveResponses,
+  V2SessionBranchErrors,
+  V2SessionBranchResponses,
   V2SessionCompactErrors,
   V2SessionCompactResponses,
   V2SessionContextErrors,
@@ -5818,6 +5820,25 @@ export class Session3 extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<V2SessionMessageResponses, V2SessionMessageErrors, ThrowOnError>({
       url: "/api/session/{sessionID}/message/{messageID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Branch session
+   *
+   * Create a new child Session that copies projected messages from the source. The clone starts at the most recent compaction message (inclusive) or copies all messages when no compaction exists.
+   */
+  public branch<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).post<V2SessionBranchResponses, V2SessionBranchErrors, ThrowOnError>({
+      url: "/api/session/{sessionID}/branch",
       ...options,
       ...params,
     })

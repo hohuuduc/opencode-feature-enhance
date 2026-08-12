@@ -37,6 +37,8 @@ import type {
   SessionsInterruptOutput,
   SessionsMessageInput,
   SessionsMessageOutput,
+  SessionsBranchInput,
+  SessionsBranchOutput,
   MessagesListInput,
   MessagesListOutput,
   ModelsListInput,
@@ -488,6 +490,17 @@ export function make(options: ClientOptions) {
             path: `/api/session/${encodeURIComponent(input.sessionID)}/message/${encodeURIComponent(input.messageID)}`,
             successStatus: 200,
             declaredStatuses: [404, 400, 401],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
+      branch: (input: SessionsBranchInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: SessionsBranchOutput }>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/branch`,
+            successStatus: 200,
+            declaredStatuses: [404, 500, 400, 401],
             empty: false,
           },
           requestOptions,

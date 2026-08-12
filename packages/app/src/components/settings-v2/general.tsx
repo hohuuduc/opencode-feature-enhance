@@ -386,6 +386,38 @@ export const SettingsGeneralV2: Component<{
     </div>
   )
 
+  const CustomSection = () => (
+    <div class="settings-v2-section">
+      <h3 class="settings-v2-section-title">{language.t("settings.general.section.custom")}</h3>
+
+      <SettingsListV2>
+        <SettingsRowV2
+          title={language.t("settings.general.row.promptQueueDialog.title")}
+          description={language.t("settings.general.row.promptQueueDialog.description")}
+        >
+          <div data-action="settings-prompt-queue-dialog">
+            <Switch
+              checked={settings.general.promptQueueDialog()}
+              onChange={(checked) => settings.general.setPromptQueueDialog(checked)}
+            />
+          </div>
+        </SettingsRowV2>
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.reasoningPartsExpanded.title")}
+          description={language.t("settings.general.row.reasoningPartsExpanded.description")}
+        >
+          <div data-action="settings-reasoning-parts-expanded">
+            <Switch
+              checked={settings.general.reasoningPartsExpanded()}
+              onChange={(checked) => settings.general.setReasoningPartsExpanded(checked)}
+            />
+          </div>
+        </SettingsRowV2>
+      </SettingsListV2>
+    </div>
+  )
+
   const AdvancedSection = () => (
     <div class="settings-v2-section">
       <h3 class="settings-v2-section-title">{language.t("settings.general.section.advanced")}</h3>
@@ -551,6 +583,8 @@ export const SettingsGeneralV2: Component<{
         </Show>
 
         <GeneralSection />
+
+        <CustomSection />
 
         <AppearanceSection controller={appearance} />
 

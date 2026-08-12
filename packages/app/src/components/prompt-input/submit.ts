@@ -3,7 +3,7 @@ import { showToast } from "@/utils/toast"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { Binary } from "@opencode-ai/core/util/binary"
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
-import { batch, startTransition, type Accessor } from "solid-js"
+import { batch, createComponent, startTransition, type Accessor } from "solid-js"
 import { useTabs } from "@/context/tabs"
 import { useServerSync, type ServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
@@ -23,6 +23,9 @@ import { createPromptSubmissionState } from "./submission-state"
 import { normalizeSessionInfo } from "@/utils/session"
 import { Event } from "@opencode-ai/schema/event"
 import { blobDataUrl } from "@/utils/draft-store"
+import { useSettings } from "@/context/settings"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { DialogPromptQueue, type PromptQueueChoice } from "@/components/dialog-prompt-queue"
 
 type PendingPrompt = {
   abort: AbortController
@@ -244,7 +247,27 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const params = useParams()
   const [search] = useSearchParams<{ draftId?: string }>()
   const tabs = useTabs()
+  const settings = useSettings()
+  const dialog = useDialog()
   const pendingKey = (sessionID: string) => ScopedKey.from(sdk().scope, sessionID)
+
+  // Asks the user how to send a follow-up while a session is busy. Resolves when
+  // the user picks an option or dismisses the dialog (treated as cancel). The
+  // settled guard keeps the promise from resolving twice when an explicit choice
+  // is then followed by the dialog's close callback.
+  const promptQueueChoice = () =>
+    new Promise<PromptQueueChoice>((resolve) => {
+      let settled = false
+      const choose = (value: PromptQueueChoice) => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
+      dialog.show(
+        () => createComponent(DialogPromptQueue, { onChoose: choose }),
+        () => choose("cancel"),
+      )
+    })
 
   const errorMessage = (err: unknown) => {
     if (err && typeof err === "object" && "message" in err && typeof err.message === "string") return err.message
@@ -477,6 +500,22 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         input.queueScroll()
       })
       return true
+    }
+
+    if (
+      !isNewSession &&
+      mode === "normal" &&
+      input.working() &&
+      settings.general.promptQueueDialog()
+    ) {
+      const choice = await promptQueueChoice()
+      if (choice === "cancel") return
+      if (choice === "queue") {
+        input.onQueue?.(draft)
+        clearContext(submission.target())
+        clearInput()
+        return
+      }
     }
 
     if (!isNewSession && mode === "normal" && input.shouldQueue?.()) {

@@ -3,7 +3,7 @@ export * from "./session/schema"
 
 import { DateTime, Effect, Layer, Schema, Context, Stream } from "effect"
 import { ListAnchor } from "@opencode-ai/schema/session"
-import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, gt, gte, inArray, like, lt, or, sql, type SQL } from "drizzle-orm"
 import { ProjectV2 } from "./project"
 import { WorkspaceV2 } from "./workspace"
 import { ModelV2 } from "./model"
@@ -14,8 +14,9 @@ import { PromptInput } from "@opencode-ai/schema/prompt-input"
 import { EventV2 } from "./event"
 import { Database } from "./database/database"
 import { SessionProjector } from "./session/projector"
-import { SessionMessageTable, SessionTable } from "./session/sql"
+import { SessionMessageTable, SessionTable, MessageTable, PartTable } from "./session/sql"
 import { SessionSchema } from "./session/schema"
+import { SessionHistory } from "./session/history"
 import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
 import { AgentV2 } from "./agent"
 import { SessionV1 } from "./v1/session"
@@ -163,6 +164,7 @@ export interface Interface {
     skill: string
     resume?: boolean
   }) => Effect.Effect<void, OperationUnavailableError>
+  readonly branch: (input: { sourceID: SessionSchema.ID }) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly active: Effect.Effect<ReadonlySet<SessionSchema.ID>>
@@ -259,6 +261,129 @@ const layer = Layer.effect(
         if (projected.type === "existing") return projected.session
         // TODO: Restore recorded sessions onto replacement synchronized workspaces in a future API slice.
         return yield* result.get(sessionID).pipe(Effect.orDie)
+      }),
+      branch: Effect.fn("V2Session.branch")(function* (input) {
+        const source = yield* result.get(input.sourceID)
+        const target = yield* result.create({
+          agent: source.agent,
+          model: source.model,
+          location: source.location,
+        })
+        const compaction = yield* SessionHistory.latestCompaction(db, input.sourceID)
+        const rows = yield* db
+          .select()
+          .from(SessionMessageTable)
+          .where(
+            and(
+              eq(SessionMessageTable.session_id, input.sourceID),
+              compaction ? gte(SessionMessageTable.seq, compaction.seq) : undefined,
+            ),
+          )
+          .orderBy(asc(SessionMessageTable.seq))
+          .all()
+          .pipe(Effect.orDie)
+        yield* Effect.forEach(rows, (row, index) =>
+          db
+            .insert(SessionMessageTable)
+            .values({
+              id: SessionMessage.ID.create(),
+              session_id: target.id,
+              type: row.type,
+              seq: index,
+              time_created: row.time_created,
+              time_updated: row.time_updated,
+              data: row.data,
+            })
+            .run()
+            .pipe(Effect.orDie),
+        )
+        const v1Boundary = yield* db
+          .select({ messageID: PartTable.message_id })
+          .from(PartTable)
+          .where(
+            and(
+              eq(PartTable.session_id, input.sourceID),
+              sql`json_extract(${PartTable.data}, '$.type') = 'compaction'`,
+            ),
+          )
+          .orderBy(desc(PartTable.time_created))
+          .limit(1)
+          .get()
+          .pipe(Effect.orDie)
+        const v1BoundaryCreated = v1Boundary
+          ? yield* db
+              .select({ created: MessageTable.time_created })
+              .from(MessageTable)
+              .where(eq(MessageTable.id, v1Boundary.messageID))
+              .get()
+              .pipe(Effect.orDie)
+          : undefined
+        const v1Rows = yield* db
+          .select()
+          .from(MessageTable)
+          .where(
+            and(
+              eq(MessageTable.session_id, input.sourceID),
+              v1BoundaryCreated ? gte(MessageTable.time_created, v1BoundaryCreated.created) : undefined,
+            ),
+          )
+          .orderBy(asc(MessageTable.time_created), asc(MessageTable.id))
+          .all()
+          .pipe(Effect.orDie)
+        const v1IDMap = new Map<string, SessionV1.MessageID>()
+        for (const row of v1Rows) {
+          v1IDMap.set(row.id, SessionV1.MessageID.ascending())
+        }
+        yield* Effect.forEach(v1Rows, (row) => {
+          const data =
+            "parentID" in row.data && typeof row.data.parentID === "string"
+              ? { ...row.data, parentID: v1IDMap.get(row.data.parentID) ?? row.data.parentID }
+              : row.data
+          return db
+            .insert(MessageTable)
+            .values({
+              id: v1IDMap.get(row.id) ?? SessionV1.MessageID.ascending(),
+              session_id: target.id,
+              time_created: row.time_created,
+              data,
+            })
+            .run()
+            .pipe(Effect.orDie)
+        })
+        if (v1Rows.length > 0) {
+          yield* Effect.forEach(
+            yield* db
+              .select()
+              .from(PartTable)
+              .where(
+                and(
+                  eq(PartTable.session_id, input.sourceID),
+                  inArray(PartTable.message_id, v1Rows.map((row) => row.id)),
+                ),
+              )
+              .all()
+              .pipe(Effect.orDie),
+            (row) =>
+              db
+                .insert(PartTable)
+                .values({
+                  id: SessionV1.PartID.ascending(),
+                  message_id: v1IDMap.get(row.message_id) ?? row.message_id,
+                  session_id: target.id,
+                  time_created: row.time_created,
+                  data: row.data,
+                })
+                .run()
+                .pipe(Effect.orDie),
+          )
+        }
+        yield* db
+          .update(SessionTable)
+          .set({ title: `${source.title} (Branch)` })
+          .where(eq(SessionTable.id, target.id))
+          .run()
+          .pipe(Effect.orDie)
+        return yield* result.get(target.id).pipe(Effect.orDie)
       }),
       get: Effect.fn("V2Session.get")(function* (sessionID) {
         const session = yield* store.get(sessionID)

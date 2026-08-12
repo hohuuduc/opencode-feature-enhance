@@ -11,7 +11,7 @@ import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
 import { File } from "@opencode-ai/session-ui/file"
 import { Markdown } from "@opencode-ai/session-ui/markdown"
 import { ScrollView } from "@opencode-ai/ui/scroll-view"
-import type { Message, Part, UserMessage } from "@opencode-ai/sdk/v2/client"
+import type { AssistantMessage, Message, Part, UserMessage } from "@opencode-ai/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { downloadSessionExport, fetchSessionExport, sessionExportFilename } from "@/utils/session-export"
 import { useLanguage } from "@/context/language"
@@ -145,6 +145,29 @@ export function SessionContextTab() {
     return usd().format(info()?.cost ?? 0)
   })
 
+  const tokenTotals = createMemo(() => {
+    const infoTokens = info()?.tokens
+    if (infoTokens) {
+      return {
+        input: infoTokens.input,
+        output: infoTokens.output + infoTokens.reasoning,
+        cache: infoTokens.cache.read + infoTokens.cache.write,
+      }
+    }
+    const totals = messages()
+      .filter((message): message is AssistantMessage => message.role === "assistant")
+      .reduce(
+        (acc, message) => ({
+          input: acc.input + message.tokens.input,
+          output: acc.output + message.tokens.output + message.tokens.reasoning,
+          cache: acc.cache + message.tokens.cache.read + message.tokens.cache.write,
+        }),
+        { input: 0, output: 0, cache: 0 },
+      )
+    if (totals.input === 0 && totals.output === 0 && totals.cache === 0) return
+    return totals
+  })
+
   const counts = createMemo(() => {
     const all = messages()
     const user = all.reduce((count, x) => count + (x.role === "user" ? 1 : 0), 0)
@@ -219,7 +242,25 @@ export function SessionContextTab() {
     },
     { label: "context.stats.userMessages", value: () => counts().user.toLocaleString(language.intl()) },
     { label: "context.stats.assistantMessages", value: () => counts().assistant.toLocaleString(language.intl()) },
-    { label: "context.stats.totalCost", value: cost },
+    {
+      label: "context.stats.totalCost",
+      value: () => {
+        const totals = tokenTotals()
+        if (!totals) return cost()
+        return (
+          <>
+            {cost()}{" "}
+            <span class="text-text-weak">
+              {language.t("context.stats.totalCostTokens", {
+                input: formatter().number(totals.input),
+                output: formatter().number(totals.output),
+                cache: formatter().number(totals.cache),
+              })}
+            </span>
+          </>
+        )
+      },
+    },
     { label: "context.stats.sessionCreated", value: () => formatter().time(info()?.time.created) },
     { label: "context.stats.lastActivity", value: () => formatter().time(ctx()?.message.time.created) },
   ] satisfies { label: string; value: () => JSX.Element }[]

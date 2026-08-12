@@ -54,6 +54,7 @@ export type HomeSessionsViewProps = {
   onCreateSession: () => void
   onOpenSession: (session: Session, options?: OpenSessionOptions) => void
   onArchiveSession: (session: Session) => Promise<void>
+  onDeleteSession: (session: Session) => void
   onSetHoverTarget: (element: HTMLElement) => void
   onSetThumbTrack: (element: HTMLDivElement) => void
   onSetContent: (element: HTMLDivElement) => void
@@ -453,13 +454,13 @@ function HomeSessionRow(props: HomeSessionsViewProps & { record: HomeSessionReco
           <HomeSessionProjectName name={props.record.projectName} />
         </Show>
       </button>
-      <Show when={SHOW_HOME_SESSION_ARCHIVE}>
-        <div
-          class={`
-            hover-reveal absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1
-            group-hover/session:opacity-100 focus-within:opacity-100
-          `}
-        >
+      <div
+        class={`
+          hover-reveal absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1
+          group-hover/session:opacity-100 focus-within:opacity-100
+        `}
+      >
+        <Show when={SHOW_HOME_SESSION_ARCHIVE}>
           <TooltipV2 class="flex shrink-0 items-center" placement="bottom" value={props.language.t("common.archive")}>
             <IconButtonV2
               data-action="home-session-archive"
@@ -474,8 +475,22 @@ function HomeSessionRow(props: HomeSessionsViewProps & { record: HomeSessionReco
               }}
             />
           </TooltipV2>
-        </div>
-      </Show>
+        </Show>
+        <TooltipV2 class="flex shrink-0 items-center" placement="bottom" value={props.language.t("session.delete.title")}>
+          <IconButtonV2
+            data-action="home-session-delete"
+            variant="ghost-muted"
+            size="large"
+            icon={<IconV2 name="trash" />}
+            aria-label={props.language.t("session.delete.title")}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              props.onDeleteSession(props.record.session)
+            }}
+          />
+        </TooltipV2>
+      </div>
     </div>
   )
 }

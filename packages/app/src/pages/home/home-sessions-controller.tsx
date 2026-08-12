@@ -1,10 +1,13 @@
 import type { Session } from "@opencode-ai/sdk/v2/client"
 import { preloadMarkdown } from "@opencode-ai/session-ui/markdown-cache"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
+import { DialogFooter, DialogHeader, DialogTitleGroup, DialogV2 } from "@opencode-ai/ui/v2/dialog-v2"
 import { useQuery } from "@tanstack/solid-query"
 import { DateTime } from "luxon"
 import { type Accessor, createEffect, createMemo, createRoot, type JSX, startTransition } from "solid-js"
 import { produce } from "solid-js/store"
+import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
 import { useCommand } from "@/context/command"
 import {
   loadHomeSessionIndex,
@@ -18,6 +21,7 @@ import { sessionHasOpenTab, useTabs } from "@/context/tabs"
 import { compareSessionTime, displayName, errorMessage, projectForSession } from "@/pages/layout/helpers"
 import { useSessionTabAvatarState } from "@/pages/layout/project-avatar-state"
 import { pathKey } from "@/utils/path-key"
+import { sessionTitle } from "@/utils/session-title"
 import { showToast } from "@/utils/toast"
 import { Binary } from "@opencode-ai/core/util/binary"
 import { archiveHomeSession } from "../home-session-archive"
@@ -232,6 +236,48 @@ export function createHomeSessionsController(home: HomeController) {
               description: errorMessage(cause, language.t("common.requestFailed")),
             }),
         })
+      },
+      delete: (session: Session) => {
+        const conn = home.server.focused()
+        const ctx = home.server.focusedContext()
+        if (!conn || !ctx) return
+        const server = ServerConnection.key(conn)
+        void dialog.show(() => (
+          <DialogV2 fit>
+            <DialogHeader hideClose>
+              <DialogTitleGroup
+                title={language.t("session.delete.title")}
+                description={language.t("session.delete.confirm", {
+                  name: sessionTitle(session.title) || session.id,
+                })}
+              />
+            </DialogHeader>
+            <DialogFooter>
+              <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
+                {language.t("common.cancel")}
+              </ButtonV2>
+              <ButtonV2
+                variant="danger"
+                onClick={() => {
+                  void ctx.sdk.client.session
+                    .delete({ sessionID: session.id, directory: session.directory })
+                    .then(() => {
+                      notifySessionTabsRemoved({ server, directory: session.directory, sessionIDs: [session.id] })
+                      dialog.close()
+                    })
+                    .catch((cause) =>
+                      showToast({
+                        title: language.t("session.delete.failed.title"),
+                        description: errorMessage(cause, language.t("session.delete.failed.title")),
+                      }),
+                    )
+                }}
+              >
+                {language.t("session.delete.button")}
+              </ButtonV2>
+            </DialogFooter>
+          </DialogV2>
+        ))
       },
     },
     tab: {

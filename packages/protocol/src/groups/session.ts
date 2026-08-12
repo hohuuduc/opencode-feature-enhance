@@ -371,6 +371,22 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           }),
         ),
     )
+    .add(
+      HttpApiEndpoint.post("session.branch", "/api/session/:sessionID/branch", {
+        params: { sessionID: Session.ID },
+        success: Schema.Struct({ data: Session.Info }),
+        error: [SessionNotFoundError, UnknownError],
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "v2.session.branch",
+            summary: "Branch session",
+            description:
+              "Create a new child Session that copies projected messages from the source. The clone starts at the most recent compaction message (inclusive) or copies all messages when no compaction exists.",
+          }),
+        ),
+    )
     .annotateMerge(
       OpenApi.annotations({
         title: "sessions",

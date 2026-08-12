@@ -386,6 +386,26 @@ export const SettingsGeneral: Component = () => {
     </div>
   )
 
+  const CustomSection = () => (
+    <div class="flex flex-col gap-1">
+      <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.custom")}</h3>
+
+      <SettingsList>
+        <SettingsRow
+          title={language.t("settings.general.row.reasoningPartsExpanded.title")}
+          description={language.t("settings.general.row.reasoningPartsExpanded.description")}
+        >
+          <div data-action="settings-reasoning-parts-expanded">
+            <Switch
+              checked={settings.general.reasoningPartsExpanded()}
+              onChange={(checked) => settings.general.setReasoningPartsExpanded(checked)}
+            />
+          </div>
+        </SettingsRow>
+      </SettingsList>
+    </div>
+  )
+
   const AdvancedSection = () => (
     <div class="flex flex-col gap-1">
       <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.advanced")}</h3>
@@ -757,6 +777,8 @@ export const SettingsGeneral: Component = () => {
         </Show>
 
         <GeneralSection />
+
+        <CustomSection />
 
         <AppearanceSection />
 

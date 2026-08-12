@@ -335,6 +335,12 @@ export const dict = {
 
   "dialog.fork.empty": "No messages to fork from",
 
+  "dialog.promptQueue.title": "Send message",
+  "dialog.promptQueue.description": "A task is still running. Choose how to send your message.",
+  "dialog.promptQueue.action.steer": "Steer",
+  "dialog.promptQueue.action.queue": "Queue",
+  "dialog.promptQueue.action.cancel": "Cancel",
+
   "dialog.directory.search.placeholder": "Search folders",
   "dialog.directory.empty": "No folders found",
   "dialog.directory.action.selectFile": "Select file",
@@ -508,6 +514,7 @@ export const dict = {
   "context.stats.userMessages": "User Messages",
   "context.stats.assistantMessages": "Assistant Messages",
   "context.stats.totalCost": "Total Cost",
+  "context.stats.totalCostTokens": "(I: {{input}}; O: {{output}}; C: {{cache}})",
   "context.stats.sessionCreated": "Session Created",
   "context.stats.lastActivity": "Last Activity",
 
@@ -576,6 +583,9 @@ export const dict = {
   "toast.session.export.success.description": "Saved session to {{filename}}",
   "toast.session.export.failed.title": "Failed to export session",
   "toast.session.export.failed.description": "An error occurred while exporting the session",
+  "toast.session.branch.success.title": "Session branched",
+  "toast.session.branch.failed.title": "Failed to branch session",
+  "toast.session.branch.failed.description": "An error occurred while branching the session",
 
   "toast.session.listFailed.title": "Failed to load sessions for {{project}}",
   "toast.project.reloadFailed.title": "Failed to reload {{project}}",
@@ -699,6 +709,7 @@ export const dict = {
   "session.messages.loadEarlier": "Load earlier messages",
   "session.messages.loading": "Loading messages...",
   "session.messages.jumpToLatest": "Jump to latest",
+  "session.messages.jumpToPrompt": "Jump to prompt",
 
   "session.context.addToContext": "Add {{selection}} to context",
   "session.todo.title": "Todos",
@@ -814,6 +825,7 @@ export const dict = {
   "common.export": "Export",
   "common.reset": "Reset",
   "common.archive": "Archive",
+  "common.branch": "Branch",
   "common.delete": "Delete",
   "common.close": "Close",
   "common.edit": "Edit",
@@ -904,6 +916,7 @@ export const dict = {
   "settings.general.section.sounds": "Sound effects",
   "settings.general.section.feed": "Feed",
   "settings.general.section.display": "Display",
+  "settings.general.section.custom": "Custom",
 
   "settings.general.row.language.title": "Language",
   "settings.general.row.language.description": "Change the display language for OpenCode",
@@ -927,6 +940,9 @@ export const dict = {
   "settings.general.row.followup.description": "Choose whether follow-up prompts steer immediately or wait in a queue",
   "settings.general.row.followup.option.queue": "Queue",
   "settings.general.row.followup.option.steer": "Steer",
+  "settings.general.row.promptQueueDialog.title": "Prompt send dialog",
+  "settings.general.row.promptQueueDialog.description":
+    "Show a Queue, Steer, or Cancel chooser when sending a message while a session is busy",
   "settings.general.row.showFileTree.title": "File tree",
   "settings.general.row.showFileTree.description": "Show the file tree panel in sessions",
   "settings.general.row.showNavigation.title": "Navigation controls",
@@ -951,6 +967,9 @@ export const dict = {
   "settings.general.row.editToolPartsExpanded.title": "Expand edit tool parts",
   "settings.general.row.editToolPartsExpanded.description":
     "Show edit, write, and patch tool parts expanded by default in the timeline",
+  "settings.general.row.reasoningPartsExpanded.title": "Expand Reasoning",
+  "settings.general.row.reasoningPartsExpanded.description":
+    "Show reasoning parts expanded by default in the timeline",
   "settings.general.row.newInterface.title": "New layout",
   "settings.general.row.newInterface.badge": "New",
   "settings.general.row.newInterface.description":

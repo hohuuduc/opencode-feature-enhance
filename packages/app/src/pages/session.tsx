@@ -2107,6 +2107,11 @@ export default function Page() {
                     if (root) scheduleScrollState(root)
                   }}
                   userMessages={visibleUserMessages()}
+                  activeMessageId={store.messageId}
+                  onSelectUserMessage={(message) => {
+                    autoScroll.pause()
+                    scrollToMessage(message, "smooth")
+                  }}
                   setHistoryAnchor={(handlers) => {
                     captureHistoryAnchor = handlers.capture
                     restoreHistoryAnchor = handlers.restore

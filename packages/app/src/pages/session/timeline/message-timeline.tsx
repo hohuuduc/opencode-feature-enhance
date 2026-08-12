@@ -39,6 +39,7 @@ import { Dialog } from "@opencode-ai/ui/dialog"
 import { DialogFooter, DialogHeader, DialogTitleGroup, DialogV2 } from "@opencode-ai/ui/v2/dialog-v2"
 import { InlineInput } from "@opencode-ai/ui/inline-input"
 import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
+import { MessageNav } from "@opencode-ai/session-ui/message-nav"
 import { SessionRetry } from "@opencode-ai/session-ui/session-retry"
 import { isScrollKeyTarget, scrollKey, scrollKeyOwner, ScrollView } from "@opencode-ai/ui/scroll-view"
 import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
@@ -251,6 +252,8 @@ export function MessageTimeline(props: {
   centered: boolean
   setContentRef: (el: HTMLDivElement) => void
   userMessages: UserMessage[]
+  activeMessageId?: string
+  onSelectUserMessage?: (message: UserMessage) => void
   anchor: (id: string) => string
   setRevealMessage?: (fn: (id: string) => void) => void
   setScrollToEnd?: (fn: () => void) => void
@@ -330,6 +333,37 @@ export function MessageTimeline(props: {
     return language.t("command.session.new")
   })
   const showHeader = createMemo(() => !!(titleValue() || parentID()))
+  const [promptNavOpen, setPromptNavOpen] = createSignal(false)
+  let promptNavCloseTimer: number | undefined
+  const cancelPromptNavClose = () => {
+    if (promptNavCloseTimer === undefined) return
+    clearTimeout(promptNavCloseTimer)
+    promptNavCloseTimer = undefined
+  }
+  const openPromptNav = () => {
+    cancelPromptNavClose()
+    setPromptNavOpen(true)
+  }
+  const closePromptNav = () => {
+    if (promptNavCloseTimer !== undefined) return
+    promptNavCloseTimer = window.setTimeout(() => {
+      promptNavCloseTimer = undefined
+      setPromptNavOpen(false)
+    }, 150)
+  }
+  const promptNavActive = createMemo(() =>
+    props.activeMessageId
+      ? props.userMessages.find((message) => message.id === props.activeMessageId)
+      : undefined,
+  )
+  const promptNavLabel = (message: UserMessage) =>
+    getMsgParts(message.id).find((part) => part.type === "text")?.text.trim().split("\n")[0]
+  const selectPromptMessage = (message: UserMessage) => {
+    cancelPromptNavClose()
+    setPromptNavOpen(false)
+    props.onSelectUserMessage?.(message)
+  }
+  onCleanup(cancelPromptNavClose)
   const projection = createTimelineProjection({
     messages: sessionMessages,
     userMessages: () => props.userMessages,
@@ -546,9 +580,9 @@ export function MessageTimeline(props: {
     while (timelineCache.size > 16) timelineCache.delete(timelineCache.keys().next().value!)
     if (resizePinFrame !== undefined) cancelAnimationFrame(resizePinFrame)
     if (overscanFrame !== undefined) cancelAnimationFrame(overscanFrame)
-    props.setRevealMessage?.(() => {})
-    props.setScrollToEnd?.(() => {})
-    props.setHistoryAnchor?.({ capture: () => {}, restore: () => {} })
+    props.setRevealMessage?.(() => { })
+    props.setScrollToEnd?.(() => { })
+    props.setHistoryAnchor?.({ capture: () => { }, restore: () => { } })
   })
 
   const [title, setTitle] = createStore({
@@ -862,6 +896,28 @@ export function MessageTimeline(props: {
       })
   }
 
+  const branchSession = async (sessionID: string) => {
+    try {
+      const result = await sdk().client.v2.session.branch({ sessionID })
+      const info = result.data!.data
+      sync().session.evict(info.id)
+      const href = (targetID: string) =>
+        params.serverKey ? sessionHref(requireServerKey(params.serverKey), targetID) : legacySessionHref(sdk().directory, targetID)
+      navigate(href(info.id))
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: language.t("toast.session.branch.success.title"),
+      })
+    } catch (err) {
+      showToast({
+        variant: "error",
+        title: language.t("toast.session.branch.failed.title"),
+        description: err instanceof Error ? err.message : language.t("toast.session.branch.failed.description"),
+      })
+    }
+  }
+
   const deleteSession = async (sessionID: string) => {
     const session = sync().session.get(sessionID)
     if (!session) return false
@@ -1060,6 +1116,7 @@ export function MessageTimeline(props: {
     const defaultOpen = createMemo(() => {
       const item = part()
       if (!item) return
+      if (item.type === "reasoning") return settings.general.reasoningPartsExpanded()
       return partDefaultOpen(item, settings.general.shellToolPartsExpanded(), settings.general.editToolPartsExpanded())
     })
 
@@ -1670,6 +1727,9 @@ export function MessageTimeline(props: {
                               <MenuV2.Item onSelect={() => void archiveSession(id)}>
                                 {language.t("common.archive")}
                               </MenuV2.Item>
+                              <MenuV2.Item onSelect={() => void branchSession(id)}>
+                                {language.t("common.branch")}
+                              </MenuV2.Item>
                               <MenuV2.Separator />
                               <MenuV2.Item onSelect={() => dialog.show(() => <DialogDeleteSession sessionID={id} />)}>
                                 {language.t("common.delete")}...
@@ -1863,6 +1923,69 @@ export function MessageTimeline(props: {
                   </div>
                 )}
               </Show>
+            </div>
+            <div
+              classList={{
+                "absolute top-12 end-3 z-10 flex flex-row-reverse items-center overflow-hidden rounded-[8px]":
+                  true,
+                "border border-border-weaker-base bg-[color-mix(in_srgb,var(--surface-raised-stronger-non-alpha)_80%,transparent)] backdrop-blur-[0.75px]":
+                  !settings.general.newLayoutDesigns(),
+                "backdrop-blur-[2px] [--icon-base:var(--v2-icon-icon-base)]":
+                  settings.general.newLayoutDesigns(),
+              }}
+              style={
+                settings.general.newLayoutDesigns()
+                  ? {
+                    background:
+                      "color-mix(in srgb, var(--v2-background-bg-base) 92%, transparent)",
+                    "box-shadow":
+                      "var(--v2-elevation-raised), 0px 2px 8px var(--v2-background-bg-base)",
+                  }
+                  : undefined
+              }
+              onMouseEnter={openPromptNav}
+              onMouseLeave={closePromptNav}
+            >
+              <div
+                class="flex shrink-0 items-center justify-center overflow-hidden transition-[width,opacity] duration-300 ease-out"
+                classList={{
+                  "w-8 h-6": !promptNavOpen(),
+                  "w-0 opacity-0": promptNavOpen(),
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label={language.t("session.messages.jumpToPrompt")}
+                  aria-expanded={promptNavOpen()}
+                  disabled={promptNavOpen()}
+                  class="flex h-full w-full cursor-pointer items-center justify-center border-none bg-transparent p-0"
+                  onClick={() => {
+                    cancelPromptNavClose()
+                    setPromptNavOpen(!promptNavOpen())
+                  }}
+                >
+                  <Icon name="menu" size="small" />
+                </button>
+              </div>
+              <div
+                class="grid min-w-0 overflow-hidden transition-[width,grid-template-rows] duration-300 ease-out"
+                classList={{
+                  "w-0 grid-rows-[0fr]": !promptNavOpen(),
+                  "w-[208px] grid-rows-[1fr]": promptNavOpen(),
+                }}
+              >
+                <div class="min-h-0 overflow-hidden">
+                  <div class="p-1 max-h-[min(480px,calc(100vh-6rem))] overflow-y-auto overflow-x-hidden">
+                    <MessageNav
+                      messages={props.userMessages}
+                      current={promptNavActive()}
+                      size="normal"
+                      getLabel={promptNavLabel}
+                      onMessageSelect={selectPromptMessage}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </Show>

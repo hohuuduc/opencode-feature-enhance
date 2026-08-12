@@ -32,6 +32,8 @@ export interface Settings {
     showReasoningSummaries: boolean
     shellToolPartsExpanded: boolean
     editToolPartsExpanded: boolean
+    reasoningPartsExpanded: boolean
+    promptQueueDialog: boolean
     showCustomAgents: boolean
     mobileTitlebarPosition: "top" | "bottom"
     newLayoutDesigns?: boolean
@@ -193,6 +195,8 @@ const defaultSettings: Settings = {
     showReasoningSummaries: false,
     shellToolPartsExpanded: false,
     editToolPartsExpanded: false,
+    reasoningPartsExpanded: false,
+    promptQueueDialog: false,
     showCustomAgents: false,
     mobileTitlebarPosition: "top",
   },
@@ -416,6 +420,20 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         ),
         setEditToolPartsExpanded(value: boolean) {
           setStore("general", "editToolPartsExpanded", value)
+        },
+        reasoningPartsExpanded: withFallback(
+          () => store.general?.reasoningPartsExpanded,
+          defaultSettings.general.reasoningPartsExpanded,
+        ),
+        setReasoningPartsExpanded(value: boolean) {
+          setStore("general", "reasoningPartsExpanded", value)
+        },
+        promptQueueDialog: withFallback(
+          () => store.general?.promptQueueDialog,
+          defaultSettings.general.promptQueueDialog,
+        ),
+        setPromptQueueDialog(value: boolean) {
+          setStore("general", "promptQueueDialog", value)
         },
         showCustomAgents,
         setShowCustomAgents(value: boolean) {

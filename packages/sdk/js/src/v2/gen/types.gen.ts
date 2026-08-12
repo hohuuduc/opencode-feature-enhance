@@ -11985,6 +11985,47 @@ export type V2SessionMessageResponses = {
 
 export type V2SessionMessageResponse = V2SessionMessageResponses[keyof V2SessionMessageResponses]
 
+export type V2SessionBranchData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/branch"
+}
+
+export type V2SessionBranchErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2SessionBranchError = V2SessionBranchErrors[keyof V2SessionBranchErrors]
+
+export type V2SessionBranchResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionV2Info
+  }
+}
+
+export type V2SessionBranchResponse = V2SessionBranchResponses[keyof V2SessionBranchResponses]
+
 export type V2SessionMessagesData = {
   body?: never
   path: {
