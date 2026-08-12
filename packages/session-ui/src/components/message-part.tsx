@@ -2103,6 +2103,7 @@ ToolRegistry.register({
   name: "shell",
   render(props) {
     const i18n = useI18n()
+    const data = useData()
     const pending = () => props.status === "pending" || props.status === "running"
     const sawPending = pending()
     const text = createMemo(() => {
@@ -2121,6 +2122,18 @@ ToolRegistry.register({
       }
     }
 
+    const workdirDisplay = createMemo(() => {
+      const raw = props.input.workdir
+      if (typeof raw !== "string") return
+      const workdir = raw.trim()
+      if (!workdir || workdir === ".") return
+      const absolute = /^[a-zA-Z]:[\\/]/.test(workdir) || workdir.startsWith("/") || workdir.startsWith("\\")
+      if (!absolute) return `/${workdir.replace(/\\/g, "/")}`
+      const relative = relativizeProjectPath(workdir, data.directory).replace(/[\\/]+$/, "")
+      if (!relative || relative === "." || relative === workdir) return
+      return `/${relative.replace(/^[\\/]+/, "").replace(/\\/g, "/")}`
+    })
+
     return (
       <BasicTool
         {...props}
@@ -2132,6 +2145,11 @@ ToolRegistry.register({
               <span data-slot="basic-tool-tool-title">
                 <TextShimmer text={i18n.t("ui.tool.shell")} active={pending()} />
               </span>
+              <Show when={workdirDisplay()}>
+                <span data-slot="basic-tool-tool-workdir" dir="ltr">
+                  {workdirDisplay()}
+                </span>
+              </Show>
               <Show when={!open() && props.input.command}>
                 <ShellSubmessage text={props.input.command} animate={sawPending} />
               </Show>

@@ -147,6 +147,22 @@
     }
   }
 
+  [data-slot="basic-tool-tool-workdir"] {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-family-sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-large);
+    letter-spacing: var(--letter-spacing-normal);
+    color: var(--v2-text-text-muted);
+  }
+
   [data-slot="basic-tool-tool-arg"] {
     flex-shrink: 1;
     min-width: 0;
@@ -339,7 +355,8 @@ body:not([data-new-layout]) {
 
     [data-slot="basic-tool-tool-subtitle"],
     [data-slot="basic-tool-tool-subtitle"].clickable:hover,
-    [data-slot="basic-tool-tool-arg"] {
+    [data-slot="basic-tool-tool-arg"],
+    [data-slot="basic-tool-tool-workdir"] {
       color: var(--text-base);
     }
   }
