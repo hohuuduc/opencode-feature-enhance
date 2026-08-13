@@ -514,7 +514,7 @@ export const dict = {
   "context.stats.userMessages": "User Messages",
   "context.stats.assistantMessages": "Assistant Messages",
   "context.stats.totalCost": "Total Cost",
-  "context.stats.totalCostTokens": "(I: {{input}}; O: {{output}}; C: {{cache}})",
+  "context.stats.totalCostTokens": "(I: {{input}}; O: {{output}}; C: {{cache}} [H: {{cacheHit}}])",
   "context.stats.sessionCreated": "Session Created",
   "context.stats.lastActivity": "Last Activity",
 

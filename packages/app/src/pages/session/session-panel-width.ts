@@ -3,7 +3,7 @@
 // (which forces the review pane to grow with the monitor), reserve a fixed
 // minimum for the review pane and let the chat panel take everything else.
 export const SESSION_PANEL_WIDTH_MIN = 450
-export const REVIEW_PANE_WIDTH_MIN = 320
+export const REVIEW_PANE_WIDTH_MIN = 590
 export const REVIEW_PANE_WIDTH_MIN_SPLIT = 400
 
 export function sessionPanelWidthMax(input: { available: number; split: boolean }) {

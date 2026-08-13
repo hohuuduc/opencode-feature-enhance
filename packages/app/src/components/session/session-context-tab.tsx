@@ -152,6 +152,8 @@ export function SessionContextTab() {
         input: infoTokens.input,
         output: infoTokens.output + infoTokens.reasoning,
         cache: infoTokens.cache.read + infoTokens.cache.write,
+        cacheRead: infoTokens.cache.read,
+        cacheWrite: infoTokens.cache.write,
       }
     }
     const totals = messages()
@@ -161,8 +163,10 @@ export function SessionContextTab() {
           input: acc.input + message.tokens.input,
           output: acc.output + message.tokens.output + message.tokens.reasoning,
           cache: acc.cache + message.tokens.cache.read + message.tokens.cache.write,
+          cacheRead: acc.cacheRead + message.tokens.cache.read,
+          cacheWrite: acc.cacheWrite + message.tokens.cache.write,
         }),
-        { input: 0, output: 0, cache: 0 },
+        { input: 0, output: 0, cache: 0, cacheRead: 0, cacheWrite: 0 },
       )
     if (totals.input === 0 && totals.output === 0 && totals.cache === 0) return
     return totals
@@ -247,14 +251,17 @@ export function SessionContextTab() {
       value: () => {
         const totals = tokenTotals()
         if (!totals) return cost()
+        const cacheHit =
+          totals.cacheRead + totals.input === 0 ? 0 : (totals.cacheRead / (totals.cacheRead + totals.input)) * 100
         return (
           <>
             {cost()}{" "}
             <span class="text-text-weak">
               {language.t("context.stats.totalCostTokens", {
-                input: formatter().number(totals.input),
-                output: formatter().number(totals.output),
-                cache: formatter().number(totals.cache),
+                input: formatter().compact(totals.input),
+                output: formatter().compact(totals.output),
+                cache: formatter().compact(totals.cache),
+                cacheHit: formatter().percent(Math.round(cacheHit)),
               })}
             </span>
           </>
