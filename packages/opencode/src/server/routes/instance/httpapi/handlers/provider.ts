@@ -1,14 +1,16 @@
 import { ProviderAuth } from "@/provider/auth"
+import { Auth } from "@/auth"
+import { Env } from "@/env"
 import { Config } from "@/config/config"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Provider } from "@/provider/provider"
 
 import { mapValues } from "remeda"
 import { Effect, Schema } from "effect"
-import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { HttpClient, HttpClientRequest, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { ProviderAuthApiError } from "../groups/provider"
+import { ProviderAuthApiError, ProviderNotConnectedError, ProviderUsage, ProviderUsageFailedError } from "../groups/provider"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 
 function mapProviderAuthError<A, R>(self: Effect.Effect<A, ProviderAuth.Error, R>) {
@@ -31,11 +33,22 @@ function mapProviderAuthError<A, R>(self: Effect.Effect<A, ProviderAuth.Error, R
   )
 }
 
+const ZEN_USAGE_URL = "https://opencode.ai/zen/go/v1/usage"
+
+function zenErrorMessage(body: unknown) {
+  if (typeof body !== "object" || body === null) return undefined
+  const message = (body as { error?: { message?: unknown } }).error?.message
+  return typeof message === "string" ? message : undefined
+}
+
 export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider", (handlers) =>
   Effect.gen(function* () {
     const cfg = yield* Config.Service
     const provider = yield* Provider.Service
     const svc = yield* ProviderAuth.Service
+    const authService = yield* Auth.Service
+    const env = yield* Env.Service
+    const http = yield* HttpClient.HttpClient
 
     const list = Effect.fn("ProviderHttpApi.list")(function* () {
       const config = yield* cfg.get()
@@ -104,10 +117,49 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       return true
     })
 
+    const usage = Effect.fn("ProviderHttpApi.usage")(function* (ctx: {
+      params: { providerID: ProviderV2.ID }
+    }) {
+      const { providerID } = ctx.params
+      const info = yield* authService
+        .get(providerID)
+        .pipe(Effect.mapError(() => new ProviderUsageFailedError({ name: "ProviderUsageFailed", data: {} })))
+      const envKey = yield* env.get("OPENCODE_API_KEY")
+      const apiKey = info?.type === "api" || info?.type === "wellknown" ? info.key : envKey
+      if (!apiKey) return yield* new ProviderNotConnectedError({ name: "ProviderNotConnected", data: { providerID } })
+
+      const response = yield* http
+        .execute(
+          HttpClientRequest.get(ZEN_USAGE_URL, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+          }),
+        )
+        .pipe(Effect.mapError(() => new ProviderUsageFailedError({ name: "ProviderUsageFailed", data: {} })))
+
+      if (response.status === 401) {
+        return yield* new ProviderNotConnectedError({ name: "ProviderNotConnected", data: { providerID } })
+      }
+      if (response.status !== 200) {
+        const body = yield* response.json.pipe(Effect.catch(() => Effect.succeed(undefined)))
+        return yield* new ProviderUsageFailedError({
+          name: "ProviderUsageFailed",
+          data: { message: zenErrorMessage(body) },
+        })
+      }
+
+      const body = yield* response.json.pipe(
+        Effect.mapError(() => new ProviderUsageFailedError({ name: "ProviderUsageFailed", data: {} })),
+      )
+      return yield* Schema.decodeUnknownEffect(ProviderUsage)(body).pipe(
+        Effect.mapError(() => new ProviderUsageFailedError({ name: "ProviderUsageFailed", data: {} })),
+      )
+    })
+
     return handlers
       .handle("list", list)
       .handle("auth", auth)
       .handleRaw("authorize", authorizeRaw)
       .handle("callback", callback)
+      .handle("usage", usage)
   }),
 )

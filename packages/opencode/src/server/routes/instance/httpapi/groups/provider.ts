@@ -11,6 +11,40 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 
 const root = "/provider"
 
+export const UsageWindow = Schema.Struct({
+  status: Schema.Literals(["ok", "rate-limited"]),
+  percent: Schema.Number,
+  resetsAt: Schema.String,
+}).annotate({ identifier: "UsageWindow" })
+
+export const ProviderUsage = Schema.Struct({
+  usage: Schema.Struct({
+    rolling: UsageWindow,
+    weekly: UsageWindow,
+    monthly: UsageWindow,
+  }),
+}).annotate({ identifier: "ProviderUsage" })
+
+export class ProviderNotConnectedError extends Schema.ErrorClass<ProviderNotConnectedError>("ProviderNotConnected")(
+  {
+    name: Schema.Literal("ProviderNotConnected"),
+    data: Schema.Struct({
+      providerID: Schema.optional(ProviderV2.ID),
+    }),
+  },
+  { httpApiStatus: 404 },
+) {}
+
+export class ProviderUsageFailedError extends Schema.ErrorClass<ProviderUsageFailedError>("ProviderUsageFailed")(
+  {
+    name: Schema.Literal("ProviderUsageFailed"),
+    data: Schema.Struct({
+      message: Schema.optional(Schema.String),
+    }),
+  },
+  { httpApiStatus: 502 },
+) {}
+
 const ProviderAuthErrorName = Schema.Union([
   Schema.Literal("BadRequest"),
   Schema.Literal("ProviderAuthOauthMissing"),
@@ -53,6 +87,17 @@ export const ProviderApi = HttpApi.make("provider")
             identifier: "provider.auth",
             summary: "Get provider auth methods",
             description: "Retrieve available authentication methods for all AI providers.",
+          }),
+        ),
+        HttpApiEndpoint.get("usage", `${root}/:providerID/usage`, {
+          params: { providerID: ProviderV2.ID },
+          success: described(ProviderUsage, "Provider usage"),
+          error: [ProviderNotConnectedError, ProviderUsageFailedError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "provider.usage",
+            summary: "Get provider usage",
+            description: "Retrieve usage limits for a connected provider, e.g. the OpenCode Go subscription.",
           }),
         ),
         HttpApiEndpoint.post("authorize", `${root}/:providerID/oauth/authorize`, {

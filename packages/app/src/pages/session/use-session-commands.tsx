@@ -139,6 +139,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const terminalCommand = withCategory(language.t("command.category.terminal"))
   const mcpCommand = withCategory(language.t("command.category.mcp"))
   const permissionsCommand = withCategory(language.t("command.category.permissions"))
+  const providerCommand = withCategory(language.t("command.category.provider"))
 
   const isAutoAcceptActive = () => {
     const sessionID = params.id
@@ -631,6 +632,21 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     }),
   ]
 
+  const providerCmds = () => [
+    providerCommand({
+      id: "provider.usage",
+      title: language.t("command.usage.view"),
+      description: language.t("command.usage.view.description"),
+      slash: "usage",
+      onSelect: () => {
+        void openDialog(
+          () => import("@/components/dialog-go-usage"),
+          (x) => dialog.show(() => <x.DialogGoUsage />),
+        )
+      },
+    }),
+  ]
+
   command.register("session", () => [
     ...sessionCmds(),
     ...shareCmds(),
@@ -641,5 +657,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     ...messageCmds(),
     ...mcpCmds(),
     ...permissionsCmds(),
+    ...providerCmds(),
   ])
 }
