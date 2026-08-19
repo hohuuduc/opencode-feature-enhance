@@ -4,7 +4,6 @@ import { Env } from "@/env"
 import { Config } from "@/config/config"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Provider } from "@/provider/provider"
-import { Auth } from "@/auth"
 
 import { mapValues } from "remeda"
 import { Effect, Schema } from "effect"
