@@ -242,6 +242,7 @@ export function createHomeSessionsController(home: HomeController) {
         const ctx = home.server.focusedContext()
         if (!conn || !ctx) return
         const server = ServerConnection.key(conn)
+        const sessions = homeSessions()
         void dialog.show(() => (
           <DialogV2 fit>
             <DialogHeader hideClose>
@@ -263,6 +264,7 @@ export function createHomeSessionsController(home: HomeController) {
                     .delete({ sessionID: session.id, directory: session.directory })
                     .then(() => {
                       notifySessionTabsRemoved({ server, directory: session.directory, sessionIDs: [session.id] })
+                      sessions.apply({ type: "session.deleted", properties: { sessionID: session.id, info: session } })
                       dialog.close()
                     })
                     .catch((cause) =>
